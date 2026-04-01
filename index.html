@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우리집 에너지 사용량 리포트</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700;900&family=Space+Mono:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0f1e;
+    color: #e8ecf5;
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  .report {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid #1e2a48;
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+    animation: fadeDown 0.6s ease both;
+  }
+  .header-left .label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #4a6fa5;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .header-left h1 { font-size: 26px; font-weight: 900; color: #fff; line-height: 1.1; }
+  .header-left h1 span { color: #4fc3f7; }
+  .header-right {
+    text-align: right;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: #4a6fa5;
+    line-height: 1.8;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  @media(max-width:600px){ .summary-grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: #111827;
+    border: 1px solid #1e2a48;
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.6s ease both;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .card.gas::before { background: linear-gradient(90deg, #f97316, #fb923c); }
+  .card.water::before { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+  .card.elec::before { background: linear-gradient(90deg, #a855f7, #c084fc); }
+
+  .card-icon { font-size: 22px; margin-bottom: 8px; }
+  .card-label { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 2px; color: #4a6fa5; text-transform: uppercase; margin-bottom: 4px; }
+  .card-value { font-size: 28px; font-weight: 900; color: #fff; line-height: 1; }
+  .card-unit { font-family: 'Space Mono', monospace; font-size: 11px; color: #6b7fa3; margin-top: 2px; }
+  .card-badge { display: inline-block; margin-top: 10px; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+  .badge-warn { background: #3f1f0a; color: #fb923c; }
+  .badge-ok   { background: #0c2a1e; color: #34d399; }
+  .badge-danger { background: #2a0f3f; color: #c084fc; }
+
+  .section-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #4a6fa5;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .chart-section {
+    background: #111827;
+    border: 1px solid #1e2a48;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    animation: fadeUp 0.8s ease both;
+  }
+
+  .chart-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .chart-row:last-child { margin-bottom: 0; }
+  .chart-month { font-family: 'Space Mono', monospace; font-size: 10px; color: #6b7fa3; width: 34px; flex-shrink: 0; }
+  .chart-bar-wrap { flex: 1; background: #1a2235; border-radius: 4px; height: 22px; overflow: hidden; }
+  .chart-bar {
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    transition: width 1s cubic-bezier(0.16,1,0.3,1);
+    min-width: 40px;
+    white-space: nowrap;
+  }
+  .bar-gas  { background: linear-gradient(90deg,#f97316,#fb923c88); }
+  .bar-water{ background: linear-gradient(90deg,#06b6d4,#22d3ee88); }
+  .bar-elec { background: linear-gradient(90deg,#a855f7,#c084fc88); }
+
+  .chart-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap:wrap; }
+  .tab {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid #1e2a48;
+    background: transparent;
+    color: #6b7fa3;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab.active { background: #1e2a48; color: #fff; border-color: #4a6fa5; }
+
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  @media(max-width:700px){ .bottom-grid { grid-template-columns: 1fr; } }
+
+  .tips-card, .roi-card {
+    background: #111827;
+    border: 1px solid #1e2a48;
+    border-radius: 12px;
+    padding: 20px;
+    animation: fadeUp 1s ease both;
+  }
+  .roi-card { background: #0d1a2e; border-color: #1e3a5f; }
+
+  .tip-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #1a2235; }
+  .tip-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .tip-text { font-size: 12px; line-height: 1.6; color: #9ab0cc; }
+  .tip-text strong { color: #e8ecf5; display: block; margin-bottom: 2px; font-size: 13px; }
+  .saving { display: inline-block; margin-top: 4px; padding: 2px 8px; background: #0c2a1e; color: #34d399; border-radius: 10px; font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px; }
+
+  .roi-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .roi-header .badge-new { background: #1e3a5f; color: #4fc3f7; font-family: 'Space Mono', monospace; font-size: 9px; padding: 3px 8px; border-radius: 10px; }
+
+  .roi-option { background: #111827; border: 1px solid #1e2a48; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+  .roi-option:last-child { margin-bottom: 0; }
+  .roi-option-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap:wrap; gap:6px; }
+  .roi-name { font-size: 13px; font-weight: 700; color: #fff; }
+  .roi-verdict { font-family: 'Space Mono', monospace; font-size: 9px; padding: 2px 8px; border-radius: 10px; white-space:nowrap; }
+  .verdict-best  { background: #0c1a0c; color: #4ade80; border:1px solid #166534; }
+  .verdict-good  { background: #0c2a1e; color: #34d399; }
+  .verdict-ok    { background: #1e2a10; color: #a3e635; }
+  .verdict-caution{ background: #3f1f0a; color: #fb923c; }
+
+  .roi-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .roi-stat { background: #1a2235; border-radius: 6px; padding: 8px; text-align: center; }
+  .roi-stat-label { font-family: 'Space Mono', monospace; font-size: 8px; color: #4a6fa5; margin-bottom: 3px; letter-spacing: 1px; }
+  .roi-stat-value { font-size: 13px; font-weight: 700; color: #fff; }
+  .roi-stat-value.green  { color: #34d399; }
+  .roi-stat-value.yellow { color: #fbbf24; }
+  .roi-stat-value.blue   { color: #4fc3f7; }
+
+  .rec-box { margin-top: 12px; padding: 10px; background: #0a1628; border-radius: 8px; font-size: 11px; color: #9ab0cc; line-height: 1.7; }
+
+  .compare-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 12px; background: #1a2235; border-radius: 8px; }
+  .compare-row:last-child { margin-bottom: 0; }
+  .compare-label { font-size: 12px; color: #9ab0cc; width: 60px; flex-shrink: 0; }
+  .mini-bar-wrap { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .mini-label { font-family: 'Space Mono', monospace; font-size: 8px; width: 22px; color: #6b7fa3; }
+  .mini-bar { height: 10px; border-radius: 3px; }
+  .mini-val  { font-family: 'Space Mono', monospace; font-size: 9px; color: #9ab0cc; }
+
+  .footer { margin-top: 20px; border-top: 1px solid #1e2a48; padding-top: 14px; font-family: 'Space Mono', monospace; font-size: 9px; color: #2e3f5a; display: flex; justify-content: space-between; flex-wrap:wrap; gap:6px; }
+
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-15px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+<div class="report">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="label">HOME UTILITY REPORT · 2025.09 – 2026.03</div>
+      <h1>우리집 에너지<br><span>사용량 분석</span></h1>
+    </div>
+    <div class="header-right">
+      기간: 7개월<br>
+      분석일: 2026.04<br>
+      가스 · 수도 · 전기
+    </div>
+  </div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="summary-grid">
+    <div class="card gas">
+      <div class="card-icon">🔥</div>
+      <div class="card-label">GAS · 평균</div>
+      <div class="card-value">50.1</div>
+      <div class="card-unit">kWh / 월</div>
+      <div class="card-badge badge-ok">✓ 이웃 대비 절반 — 양호</div>
+    </div>
+    <div class="card water">
+      <div class="card-icon">💧</div>
+      <div class="card-label">WATER · 평균</div>
+      <div class="card-value">17.5</div>
+      <div class="card-unit">CU M / 월</div>
+      <div class="card-badge badge-danger">🔴 이웃 대비 2배 이상</div>
+    </div>
+    <div class="card elec">
+      <div class="card-icon">⚡</div>
+      <div class="card-label">ELECTRICITY · 평균</div>
+      <div class="card-value">978</div>
+      <div class="card-unit">kWh / 월</div>
+      <div class="card-badge badge-danger">🔴 이웃 대비 5배</div>
+    </div>
+  </div>
+
+  <!-- CHART -->
+  <div class="chart-section">
+    <div class="section-title">월별 사용량 추이</div>
+    <div class="chart-tabs">
+      <button class="tab active" onclick="showChart('elec',this)">⚡ 전기</button>
+      <button class="tab" onclick="showChart('water',this)">💧 수도</button>
+      <button class="tab" onclick="showChart('gas',this)">🔥 가스</button>
+    </div>
+    <div id="chart-area"></div>
+  </div>
+
+  <!-- BOTTOM GRID -->
+  <div class="bottom-grid">
+
+    <!-- SAVINGS TIPS -->
+    <div class="tips-card">
+      <div class="section-title">절약 제안</div>
+      <div class="tip-item">
+        <div class="tip-icon">🌀</div>
+        <div class="tip-text">
+          <strong>천장 팬 설치 (가장 효과적)</strong>
+          에어컨 설정을 26°C로 올리고 천장 팬 병행 시 체감온도 3–4°C 하락. 에어컨 가동시간 30–40% 감소. 일반 팬보다 방 전체 순환에 효과적.
+          <span class="saving">월 ~200–300 kWh 절감</span>
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">💨</div>
+        <div class="tip-text">
+          <strong>스탠드/서큘레이터 선풍기 (저비용 즉시 효과)</strong>
+          초기 비용 $30–80으로 바로 사용 가능. 에어컨과 함께 쓰면 냉기 순환 효율 향상. 이사·이동이 잦으면 선풍기가 현실적.
+          <span class="saving">월 ~80–150 kWh 절감</span>
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">🌡️</div>
+        <div class="tip-text">
+          <strong>에어컨 필터 월 1회 청소</strong>
+          막힌 필터는 소비전력 10–15% 증가시킴. 비용 0원, 즉각 효과.
+          <span class="saving">월 ~100–150 kWh 절감</span>
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">💧</div>
+        <div class="tip-text">
+          <strong>수도 누수 먼저 점검!</strong>
+          야간에 모든 수도 잠그고 미터기 확인. 조금이라도 돌아가면 누수. 절수 샤워헤드도 효과적.
+          <span class="saving">월 ~5–8 CU M 절감 가능</span>
+        </div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-icon">🔌</div>
+        <div class="tip-text">
+          <strong>대기전력 차단 + LED 전환</strong>
+          스마트 멀티탭 + 전체 LED 교체.
+          <span class="saving">월 ~50–80 kWh 절감</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROI PANEL -->
+    <div class="roi-card">
+      <div class="roi-header">
+        <div class="section-title" style="margin:0">냉방 절감 ROI 분석</div>
+        <div class="badge-new">4가지 옵션</div>
+      </div>
+
+      <!-- 선풍기/서큘레이터 -->
+      <div class="roi-option">
+        <div class="roi-option-header">
+          <div class="roi-name">💨 선풍기 / 서큘레이터</div>
+          <div class="roi-verdict verdict-best">⚡ ROI 즉시</div>
+        </div>
+        <div class="roi-stats">
+          <div class="roi-stat">
+            <div class="roi-stat-label">구매비</div>
+            <div class="roi-stat-value blue">$30–80</div>
+          </div>
+          <div class="roi-stat">
+            <div class="roi-stat-label">월 절감</div>
+            <div class="roi-stat-value green">~$20–40</div>
+          </div>
+          <div class="roi-stat">
+            <div class="roi-stat-label">회수 기간</div>
+            <div class="roi-stat-value green">1–3개월</div>
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:#6b9ac4;line-height:1.5;">
+          📌 단독 사용보다 에어컨과 병행 시 효과 극대화. 서큘레이터(Dyson/Xiaomi)가 일반 선풍기보다 공기 순환 효율 2–3배 높음.
+        </div>
+      </div>
+
+      <!-- 천장 팬 -->
+      <div class="roi-option">
+        <div class="roi-option-header">
+          <div class="roi-name">🌀 천장 팬 설치 (방 2–3개)</div>
+          <div class="roi-verdict verdict-good">✓ ROI 최우수</div>
+        </div>
+        <div class="roi-stats">
+          <div class="roi-stat">
+            <div class="roi-stat-label">설치비</div>
+            <div class="roi-stat-value">$300–600</div>
+          </div>
+          <div class="roi-stat">
+            <div class="roi-stat-label">월 절감</div>
+            <div class="roi-stat-value green">~$60–90</div>
+          </div>
+          <div class="roi-stat">
+            <div class="roi-stat-label">회수 기간</div>
+            <div class="roi-stat-value green">4–8개월</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 단열 필름 -->
+      <div class="roi-option">
+        <div class="roi-option-header">
+          <div class="roi-name">🏠 창문 단열 필름</div>
+          <div class="roi-verdict verdict-ok">△ ROI 양호</div>
+        </div>
+        <div class="roi-stats">
+          <div class="roi-stat">
+            <div class="roi-stat-label">설치비</div>
+            <div class="roi-stat-value">$200–400</div>
+          </div>
+          <div class="roi-stat">
+            <div class="roi-stat-label">월 절감</div>
+            <div class="roi-stat-value yellow">~$30–50</div>
+          </div>
+          <div class="roi-stat">
+            <div class="roi-stat-label">회수 기간</div>
+            <div class="roi-stat-value yellow">6–12개월</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 인버터 에어컨 -->
+      <div class="roi-option">
+        <div class="roi-option-header">
+          <div class="roi-name">❄️ 인버터 에어컨 교체</div>
+          <div class="roi-verdict verdict-caution">▽ ROI 장기</div>
+        </div>
+        <div class="roi-stats">
+          <div class="roi-stat">
+            <div class="roi-stat-label">설치비</div>
+            <div class="roi-stat-value">$1,500–2,500</div>
+          </div>
+          <div class="roi-stat">
+            <div class="roi-stat-label">월 절감</div>
+            <div class="roi-stat-value yellow">~$80–120</div>
+          </div>
+          <div class="roi-stat">
+            <div class="roi-stat-label">회수 기간</div>
+            <div class="roi-stat-value yellow">18–30개월</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rec-box">
+        💡 <strong style="color:#4fc3f7">추천 전략:</strong><br>
+        <strong style="color:#4ade80">Step 1</strong> — 선풍기/서큘레이터 즉시 구매 ($50) → 다음 달부터 절감 시작<br>
+        <strong style="color:#4ade80">Step 2</strong> — 천장 팬 + 단열 필름 설치 ($500–1,000) → 4–8개월 내 회수<br>
+        <strong style="color:#fbbf24">Step 3</strong> — 에어컨 노후화 시 인버터 교체 고려<br>
+        <br>
+        예상 총 절감: <strong style="color:#34d399">월 $140–200 / kWh 350–500 감소</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEIGHBOR COMPARISON -->
+  <div class="chart-section" style="margin-bottom:14px;">
+    <div class="section-title">이웃 대비 비교</div>
+    <div class="compare-row">
+      <div class="compare-label">⚡ 전기</div>
+      <div style="flex:1">
+        <div class="mini-bar-wrap"><div class="mini-label">우리</div><div class="mini-bar" style="width:100%;background:linear-gradient(90deg,#a855f7,#c084fc);height:12px;border-radius:3px;"></div><div class="mini-val">978 kWh</div></div>
+        <div class="mini-bar-wrap"><div class="mini-label">이웃</div><div class="mini-bar" style="width:20%;background:#2a2a4a;height:12px;border-radius:3px;"></div><div class="mini-val">~196 kWh</div></div>
+      </div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-label">💧 수도</div>
+      <div style="flex:1">
+        <div class="mini-bar-wrap"><div class="mini-label">우리</div><div class="mini-bar" style="width:100%;background:linear-gradient(90deg,#06b6d4,#22d3ee);height:12px;border-radius:3px;"></div><div class="mini-val">17.5 CU M</div></div>
+        <div class="mini-bar-wrap"><div class="mini-label">이웃</div><div class="mini-bar" style="width:50%;background:#0a2a30;height:12px;border-radius:3px;"></div><div class="mini-val">~8.7 CU M</div></div>
+      </div>
+    </div>
+    <div class="compare-row" style="margin-bottom:0">
+      <div class="compare-label">🔥 가스</div>
+      <div style="flex:1">
+        <div class="mini-bar-wrap"><div class="mini-label">우리</div><div class="mini-bar" style="width:50%;background:linear-gradient(90deg,#f97316,#fb923c);height:12px;border-radius:3px;"></div><div class="mini-val">50.1 kWh</div></div>
+        <div class="mini-bar-wrap"><div class="mini-label">이웃</div><div class="mini-bar" style="width:100%;background:#2a1800;height:12px;border-radius:3px;"></div><div class="mini-val">~100 kWh</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>HOME UTILITY REPORT · Sept 2025 – March 2026</span>
+    <span>GENERATED 2026.04.01</span>
+  </div>
+
+</div>
+
+<script>
+const data = {
+  elec:  { months:['Sept','Oct','Nov','Dec','Jan','Feb','Mar'], values:[1616,1355,960,1277,291,772,578], max:1616, cls:'bar-elec',  unit:'kWh' },
+  water: { months:['Sept','Oct','Nov','Dec','Jan','Feb','Mar'], values:[18.39,16.39,18.6,19.3,19.5,19.1,11], max:19.5, cls:'bar-water', unit:'CU M' },
+  gas:   { months:['Sept','Oct','Nov','Dec','Jan','Feb','Mar'], values:[31,36,62,51,68,56,47], max:68, cls:'bar-gas',  unit:'kWh' }
+};
+function showChart(type, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const d = data[type];
+  const area = document.getElementById('chart-area');
+  area.innerHTML = '';
+  d.months.forEach((m, i) => {
+    const pct = Math.round((d.values[i] / d.max) * 100);
+    const row = document.createElement('div');
+    row.className = 'chart-row';
+    row.innerHTML = `<div class="chart-month">${m}</div><div class="chart-bar-wrap"><div class="chart-bar ${d.cls}" style="width:${pct}%">${d.values[i]} ${d.unit}</div></div>`;
+    area.appendChild(row);
+  });
+}
+showChart('elec', document.querySelector('.tab.active'));
+</script>
+</body>
+</html>
